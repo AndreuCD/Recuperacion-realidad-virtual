@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parking VR - Atardecer Sincronizado</title>
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js"></script>
+</head>
+<body>
+
+    <script>
+        AFRAME.registerComponent('day-night-cycle', {
+            tick: function (time, deltaTime) {
+                // Obtenemos la rotación Z del pivote
+                var rotation = this.el.getAttribute('rotation').z;
+                // Normalizamos a 0-360
+                var angle = (rotation % 360 + 360) % 360;
+                
+                var sky = document.querySelector('a-sky');
+                var sunLight = document.querySelector('#sun-light');
+                var sunBlock = document.querySelector('#sun-block');
+                
+                // Calculamos la altura real del sol (0 es el horizonte, 1 es el cenit, -1 es la noche)
+                // Ajustamos con Math.cos porque el sol empieza en 0, 60, 0 (arriba)
+                var sunHeight = Math.cos(THREE.MathUtils.degToRad(angle));
+                
+                var r, g, b;
+
+                // --- LÓGICA DE ATARDECER REAL ---
+                if (sunHeight > 0.15) {
+                    // DÍA PLENO
+                    r = 162; g = 217; b = 255;
+                    if(sunBlock) sunBlock.setAttribute('material', 'color', '#FFD700');
+                } 
+                else if (sunHeight <= 0.15 && sunHeight > -0.15) {
+                    // ATARDECER / AMANECER (Cuando el bloque está cerca del borde)
+                    // Calculamos un factor de mezcla (0 a 1)
+                    var factor = (sunHeight - (-0.15)) / 0.3;
+                    
+                    // Mezcla entre Azul Cielo y Naranja Rojizo
+                    r = Math.floor(255 * (1 - factor) + 162 * factor);
+                    g = Math.floor(100 * (1 - factor) + 217 * factor);
+                    b = Math.floor(20 * (1 - factor) + 255 * factor);
+                    
+                    if(sunBlock) sunBlock.setAttribute('material', 'color', '#FF4500');
+                } 
+                else {
+                    // NOCHE TOTAL
+                    r = 0; g = 0; b = 15; // Negro con un pelín de azul
+                    if(sunBlock) sunBlock.setAttribute('material', 'color', '#333');
+                }
+                
+                sky.setAttribute('color', `rgb(${r}, ${g}, ${b})`);
+                
+                // La luz solo brilla si el sol está por encima del horizonte
+                var intensity = Math.max(0, sunHeight * 1.5);
+                if (sunLight) sunLight.setAttribute('light', 'intensity', intensity);
+            }
+        });
+    </script>
+
+    <a-scene physics="debug: false; gravity: 0">
+        
+        <a-assets>
+            <a-asset-item id="mapa-parking" src="parking.glb"></a-asset-item>
+            <a-asset-item id="car1" src="coche1.glb"></a-asset-item>
+            <a-asset-item id="car2" src="coche2.glb"></a-asset-item>
+            <a-asset-item id="car3" src="coche3.glb"></a-asset-item>
+        </a-assets>
+
+        <a-sky color="#A2D9FF"></a-sky>
+        
+        <a-entity id="sun-pivote" position="0 0 0" 
+                  animation="property: rotation; from: 0 0 0; to: 0 0 360; loop: true; dur: 300000; easing: linear"
+                  day-night-cycle>
+            
+            <a-box id="sun-block" position="0 60 0" scale="6 6 6" 
+                   material="color: #FFD700; shader: flat; emissive: #FFD700; emissiveIntensity: 2">
+                <a-entity id="sun-light" light="type: directional; castShadow: true; intensity: 1.5"></a-entity>
+            </a-box>
+        </a-entity>
+
+        <a-entity light="type: ambient; intensity: 0.2"></a-entity>
+
+        <a-entity gltf-model="#mapa-parking" scale="15 15 15" static-body shadow="receive: true"></a-entity>
+
+        <a-entity gltf-model="#car1" position="14 0.2 -15" rotation="0 90 0" scale="0.05 0.05 0.05"></a-entity>
+
+        <a-entity gltf-model="#car2" position="-8 1.2 -18" rotation="0 0 0" scale="0.01 0.01 0.01"></a-entity>
+
+        <a-entity gltf-model="#car3" position="-22 0.8 -8" rotation="0 -90 0" scale="4.0 4.0 4.0"></a-entity>
+
+        <a-entity id="rig" position="0 0 15">
+            <a-entity camera look-controls wasd-controls position="0 1.6 0">
+                <a-cursor color="red"></a-cursor>
+            </a-entity>
+        </a-entity>
+
+    </a-scene>
+</body>
+</html>
